@@ -1,0 +1,15 @@
+[project]
+name = "alter-imagineer"
+version = "0.1.0"
+description = "Retouch Mimic MVP workspace"
+requires-python = ">=3.9"
+dependencies = [
+  "numpy",
+  "Pillow",
+  "dearpygui",
+  "streamlit",
+  "retouch_engine",
+]
+
+[tool.uv.sources]
+retouch_engine = { path = "retouch_engine", editable = true }
