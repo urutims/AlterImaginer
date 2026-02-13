@@ -297,6 +297,7 @@ def on_save(sender, app_data, user_data) -> None:
         return
     STATE["is_saving"] = True
     dpg.configure_item("save_button", enabled=False)
+    dpg.configure_item("save_progress_modal", show=True)
     params = params_from_ui()
     sample_id = get_next_id()
     try:
@@ -311,6 +312,7 @@ def on_save(sender, app_data, user_data) -> None:
         dpg.configure_item("save_modal", show=True)
     finally:
         STATE["is_saving"] = False
+        dpg.configure_item("save_progress_modal", show=False)
         dpg.configure_item("save_button", enabled=True)
 
 
@@ -539,6 +541,21 @@ def build_ui() -> None:
         dpg.add_button(label="Save sample", tag="save_button",
                        callback=on_save, enabled=False)
         dpg.add_text("", tag="status_text")
+
+    with dpg.window(
+        label="Saving",
+        modal=True,
+        show=False,
+        no_title_bar=True,
+        no_move=True,
+        no_resize=True,
+        no_close=True,
+        tag="save_progress_modal",
+        width=240,
+        height=120,
+    ):
+        dpg.add_text("保存中です...", wrap=220)
+        dpg.add_loading_indicator(radius=7, style=1, speed=1.5)
 
     with dpg.window(
         label="Save",
