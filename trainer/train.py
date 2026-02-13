@@ -15,19 +15,28 @@ from trainer.dataset import RetouchDataset, PARAM_ORDER
 from trainer.model import build_model
 from retouch_engine import PARAM_RANGES
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, required=True,
-                        help="Dataset root directory")
+                        help="Dataset root directory (absolute or project-relative)")
     parser.add_argument("--out", type=str, required=True,
-                        help="Artifacts output directory")
+                        help="Artifacts output directory (absolute or project-relative)")
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
+
+
+def resolve_cli_path(raw_path: str) -> Path:
+    path = Path(raw_path).expanduser()
+    if path.is_absolute():
+        return path
+    return PROJECT_ROOT / path
 
 
 def save_config(out_dir: Path, image_size: int) -> None:
@@ -78,8 +87,8 @@ def eval_one_epoch(model: nn.Module, loader: DataLoader, loss_fn: nn.Module, dev
 
 def main() -> None:
     args = parse_args()
-    data_dir = Path(args.data)
-    out_dir = Path(args.out)
+    data_dir = resolve_cli_path(args.data)
+    out_dir = resolve_cli_path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     dataset = RetouchDataset(data_dir, args.image_size)

@@ -92,7 +92,7 @@ def load_state() -> None:
     except Exception:
         return
     last_dir = data.get("last_dir")
-    if isinstance(last_dir, str):
+    if isinstance(last_dir, str) and Path(last_dir).is_dir():
         STATE["last_dir"] = last_dir
 
 
@@ -449,11 +449,25 @@ def apply_fixed_layout() -> None:
 
 
 def setup_fonts() -> None:
-    font_candidates = [
-        "C:/Windows/Fonts/meiryo.ttc",
-        "C:/Windows/Fonts/YuGothM.ttc",
-        "C:/Windows/Fonts/msgothic.ttc",
-    ]
+    font_candidates = []
+    if sys.platform.startswith("win"):
+        font_candidates = [
+            "C:/Windows/Fonts/meiryo.ttc",
+            "C:/Windows/Fonts/YuGothM.ttc",
+            "C:/Windows/Fonts/msgothic.ttc",
+        ]
+    elif sys.platform == "darwin":
+        font_candidates = [
+            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+            "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        ]
+    else:
+        font_candidates = [
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        ]
 
     for font_path in font_candidates:
         if Path(font_path).exists():

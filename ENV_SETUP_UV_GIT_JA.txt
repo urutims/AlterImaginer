@@ -1,0 +1,147 @@
+alter_imagineer 環境再現手順（uv + git）
+
+最終更新: 2026-02-13
+対象: このリポジトリを他のPCで同じ環境で実行したい人
+
+==================================================
+0. この手順で達成すること
+==================================================
+- git でソースを取得する
+- uv で依存関係を lock ファイルに合わせて再現する
+- 主要アプリ（collector / train / infer）が起動することを確認する
+
+重要ポイント:
+- 再現性のキーは `uv.lock` です
+- `pyproject.toml` を更新したら、必ず `uv.lock` も更新してコミットしてください
+
+
+==================================================
+1. 共有する側（開発者）が先にやること
+==================================================
+1-1. 依存の定義を更新したら lock を更新
+  PowerShell (リポジトリ直下):
+    uv lock
+
+1-2. 動作確認
+    uv sync
+    uv run python collector_app/dpg_app.py
+
+  必要なら学習・推論も確認:
+    uv run python trainer/train.py --data dataset --out artifacts
+    uv run streamlit run infer_app/app.py
+
+1-3. git へコミット・プッシュ
+  必須で含めるファイル:
+  - pyproject.toml
+  - uv.lock
+  - （必要なら）README/HOWTO など手順書
+
+  例:
+    git add pyproject.toml uv.lock HOWTO.md
+    git commit -m "Update deps and lock file"
+    git push
+
+
+==================================================
+2. 使う側（新しいPC）がやること
+==================================================
+2-1. 事前インストール
+- Git
+- uv
+
+確認コマンド:
+  git --version
+  uv --version
+
+2-2. リポジトリを clone
+  git clone <あなたのリポジトリURL>
+  cd alter_imagineer
+
+2-3. lock に合わせて環境構築
+  uv sync
+
+補足:
+- `.venv` は uv が自動で作成します
+- 依存は `uv.lock` に固定されたバージョンで入ります
+
+2-4. 起動確認（最小）
+  uv run python collector_app/dpg_app.py
+
+2-5. 必要に応じて機能確認
+  学習:
+    uv run python trainer/train.py --data dataset --out artifacts
+
+  推論UI:
+    uv run streamlit run infer_app/app.py
+
+
+==================================================
+3. 日常運用（pull 後の更新手順）
+==================================================
+3-1. 最新コード取得
+  git pull
+
+3-2. 依存更新（毎回これでOK）
+  uv sync
+
+3-3. 実行
+  uv run python collector_app/dpg_app.py
+
+
+==================================================
+4. よくあるトラブルと対処
+==================================================
+4-1. `uv sync` で失敗する
+- ネットワーク制限/社内プロキシを確認
+- uv のバージョンを確認・更新
+  uv --version
+
+4-2. 実行時にモジュールが見つからない
+- `cd` がリポジトリ直下か確認
+- もう一度 `uv sync` 実行
+- `uv run ...` で起動しているか確認（python 直実行ではなく）
+
+4-3. ローカルパッケージ `retouch_engine` が読めない
+- `pyproject.toml` の以下設定が存在するか確認:
+    [tool.uv.sources]
+    retouch_engine = { path = "retouch_engine", editable = true }
+- `uv sync` を再実行
+
+4-4. 依存を追加したのに他PCで再現されない
+- 追加した人が `uv lock` を実行していない可能性
+- `pyproject.toml` と `uv.lock` の両方がコミットされているか確認
+
+
+==================================================
+5. チーム向けルール（推奨）
+==================================================
+- 依存変更時は必ず:
+  1) `pyproject.toml` を更新
+  2) `uv lock` 実行
+  3) `uv sync` でローカル確認
+  4) `pyproject.toml` と `uv.lock` を同時コミット
+
+- 実行コマンドは統一して `uv run ...` を使う
+- 問題報告時は以下を添える:
+  - OS
+  - `uv --version`
+  - 実行したコマンド
+  - エラーログ全文
+
+
+==================================================
+6. 最短手順（コピペ用）
+==================================================
+新規PCで最短セットアップ:
+
+  git clone <あなたのリポジトリURL>
+  cd alter_imagineer
+  uv sync
+  uv run python collector_app/dpg_app.py
+
+更新時:
+
+  git pull
+  uv sync
+
+以上。
