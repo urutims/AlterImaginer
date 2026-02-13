@@ -93,9 +93,9 @@ id,before_path,after_path,exposure_ev,contrast,gamma,saturation,temp,tint
 - exposure_ev: [-2.0, +2.0] (EV)
 - contrast: [0.70, 1.30]
 - gamma: [0.70, 1.30] (1.0で無変化)
-- saturation: [0.70, 1.30]
-- temp: [-1.0, +1.0] (WBの青 ⇔ 黄)
-- tint: [-1.0, +1.0] (WBの緑 ⇔ マゼンタ)
+- saturation: [0.50, 1.60]
+- temp: [-2.0, +2.0] (WBの青 ⇔ 黄)
+- tint: [-2.0, +2.0] (WBの緑 ⇔ マゼンタ)
 
 ### 4.2 WBの実装方針 (MVP)
 - temp と tint を内部的にRGBゲインへ変換して適用

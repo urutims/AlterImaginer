@@ -5,9 +5,12 @@ description = "Retouch Mimic MVP workspace"
 requires-python = ">=3.9"
 dependencies = [
   "numpy",
+  "pandas",
   "Pillow",
   "dearpygui",
   "streamlit",
+  "torch",
+  "torchvision",
   "retouch_engine",
 ]
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -47,12 +48,15 @@ DEFAULT_PARAMS = {
     "tint": 0.0,
 }
 
-WINDOW_WIDTH = 1280
-WINDOW_HEIGHT = 720
+WINDOW_WIDTH = 1600
+WINDOW_HEIGHT = 1000
 CONTROLS_WIDTH = 360
-MARGIN = 10
-PREVIEW_WINDOW_WIDTH = WINDOW_WIDTH - CONTROLS_WIDTH - MARGIN * 3
-PREVIEW_WINDOW_HEIGHT = WINDOW_HEIGHT - MARGIN * 2
+MARGIN = 0
+WINDOW_INSET = 76
+LABEL_HEIGHT = 40
+PREVIEW_GAP = 8
+PREVIEW_WINDOW_WIDTH = WINDOW_WIDTH - CONTROLS_WIDTH
+PREVIEW_WINDOW_HEIGHT = WINDOW_HEIGHT
 
 STATE = {
     "before": None,
@@ -67,7 +71,9 @@ STATE = {
     "preview_w": 1,
     "preview_h": 1,
     "preview_max_w": 420,
-    "preview_max_h": 640,
+    "preview_max_h": 620,
+    "preview_window_w": PREVIEW_WINDOW_WIDTH,
+    "preview_window_h": PREVIEW_WINDOW_HEIGHT,
     "layout": "horizontal",
 }
 
@@ -198,6 +204,27 @@ def update_texture(tag: str, img_u8: np.ndarray) -> None:
     dpg.set_value(tag, data)
 
 
+def crop_to_aspect(img_u8: np.ndarray) -> np.ndarray:
+    height, width = img_u8.shape[:2]
+    if width >= height:
+        target_aspect = 3 / 2
+    else:
+        target_aspect = 2 / 3
+
+    current_aspect = width / height
+    if current_aspect > target_aspect:
+        new_width = int(height * target_aspect)
+        left = (width - new_width) // 2
+        right = left + new_width
+        return img_u8[:, left:right]
+    if current_aspect < target_aspect:
+        new_height = int(width / target_aspect)
+        top = (height - new_height) // 2
+        bottom = top + new_height
+        return img_u8[top:bottom, :]
+    return img_u8
+
+
 def _new_texture_tag(prefix: str) -> str:
     STATE["tex_counter"] += 1
     return f"{prefix}_{STATE['tex_counter']}"
@@ -288,27 +315,33 @@ def on_save(sender, app_data, user_data) -> None:
 
 
 def load_path(path: str) -> None:
-    STATE["last_dir"] = str(Path(path).parent)
+    normalized = str(Path(os.fsdecode(path)))
+    STATE["last_dir"] = str(Path(normalized).parent)
     save_state()
-    STATE["path"] = path
-    before = load_image_rgb_u8(path)
+    STATE["path"] = normalized
+    before = load_image_rgb_u8(normalized)
+    before = crop_to_aspect(before)
     STATE["before"] = before
     height, width = before.shape[:2]
     if width >= height:
         STATE["layout"] = "vertical"
-        STATE["preview_max_w"] = PREVIEW_WINDOW_WIDTH
-        STATE["preview_max_h"] = (PREVIEW_WINDOW_HEIGHT - MARGIN) // 2
+        STATE["preview_max_w"] = STATE["preview_window_w"]
+        available_h = STATE["preview_window_h"] - \
+            LABEL_HEIGHT * 2 - PREVIEW_GAP
+        STATE["preview_max_h"] = max(1, available_h // 2)
     else:
         STATE["layout"] = "horizontal"
-        STATE["preview_max_w"] = (PREVIEW_WINDOW_WIDTH - MARGIN) // 2
-        STATE["preview_max_h"] = PREVIEW_WINDOW_HEIGHT
+        available_w = STATE["preview_window_w"] - PREVIEW_GAP
+        STATE["preview_max_w"] = max(1, available_w // 2)
+        STATE["preview_max_h"] = max(
+            1, STATE["preview_window_h"] - LABEL_HEIGHT)
 
     STATE["preview_before"] = make_preview_rgb(before)
     STATE["preview_h"], STATE["preview_w"] = STATE["preview_before"].shape[:2]
     rebuild_textures()
     rebuild_preview_content()
     update_texture(STATE["before_tex"], before)
-    dpg.set_value("path_text", f"Path: {path}")
+    dpg.set_value("path_text", f"Path: {normalized}")
     dpg.configure_item("save_button", enabled=True)
     refresh_after()
 
@@ -357,15 +390,91 @@ def rebuild_preview_content() -> None:
         with dpg.group():
             dpg.add_text("Before")
             dpg.add_image(STATE["before_tex"], tag="before_image")
+        if horizontal:
+            dpg.add_spacer(width=PREVIEW_GAP)
+        else:
+            dpg.add_spacer(height=PREVIEW_GAP)
         with dpg.group():
             dpg.add_text("After")
             dpg.add_image(STATE["after_tex"], tag="after_image")
 
 
+def apply_fixed_layout() -> None:
+    client_w = max(dpg.get_viewport_client_width(), WINDOW_WIDTH)
+    client_h = max(dpg.get_viewport_client_height(), WINDOW_HEIGHT)
+    preview_w = max(client_w - CONTROLS_WIDTH, 200)
+    preview_h = max(client_h - WINDOW_INSET, 200)
+
+    STATE["preview_window_w"] = int(preview_w)
+    STATE["preview_window_h"] = int(preview_h)
+
+    dpg.configure_item(
+        "controls_window",
+        width=CONTROLS_WIDTH,
+        height=client_h - WINDOW_INSET,
+    )
+    dpg.configure_item(
+        "preview_window",
+        pos=(CONTROLS_WIDTH, 0),
+        width=STATE["preview_window_w"],
+        height=STATE["preview_window_h"],
+    )
+
+    if STATE["before"] is None:
+        STATE["preview_w"] = max(1, STATE["preview_window_w"])
+        STATE["preview_h"] = max(1, STATE["preview_window_h"])
+        rebuild_textures()
+        return
+
+    height, width = STATE["before"].shape[:2]
+    if width >= height:
+        STATE["layout"] = "vertical"
+        STATE["preview_max_w"] = STATE["preview_window_w"]
+        available_h = STATE["preview_window_h"] - \
+            LABEL_HEIGHT * 2 - PREVIEW_GAP
+        STATE["preview_max_h"] = max(1, available_h // 2)
+    else:
+        STATE["layout"] = "horizontal"
+        available_w = STATE["preview_window_w"] - PREVIEW_GAP
+        STATE["preview_max_w"] = max(1, available_w // 2)
+        STATE["preview_max_h"] = max(
+            1, STATE["preview_window_h"] - LABEL_HEIGHT)
+
+    STATE["preview_before"] = make_preview_rgb(STATE["before"])
+    STATE["preview_h"], STATE["preview_w"] = STATE["preview_before"].shape[:2]
+    rebuild_textures()
+    rebuild_preview_content()
+    update_texture(STATE["before_tex"], STATE["before"])
+    refresh_after()
+
+
+def setup_fonts() -> None:
+    font_candidates = [
+        "C:/Windows/Fonts/meiryo.ttc",
+        "C:/Windows/Fonts/YuGothM.ttc",
+        "C:/Windows/Fonts/msgothic.ttc",
+    ]
+
+    for font_path in font_candidates:
+        if Path(font_path).exists():
+            with dpg.font_registry():
+                with dpg.font(font_path, 16) as font:
+                    dpg.add_font_range(0x0020, 0x00FF)
+                    dpg.add_font_range(0x3000, 0x30FF)
+                    dpg.add_font_range(0x4E00, 0x9FFF)
+            dpg.bind_font(font)
+            break
+
+
 def build_ui() -> None:
     dpg.create_context()
+    setup_fonts()
     dpg.create_viewport(
-        title="Retouch Mimic - Collector (DPG)", width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
+        title="Alter Imagineer - SampleEditor (DPG)",
+        width=WINDOW_WIDTH,
+        height=WINDOW_HEIGHT,
+        resizable=False,
+    )
 
     if not dpg.does_item_exist("texture_registry"):
         dpg.add_texture_registry(show=False, tag="texture_registry")
@@ -390,13 +499,16 @@ def build_ui() -> None:
     with dpg.window(
         label="Controls",
         width=CONTROLS_WIDTH,
-        height=WINDOW_HEIGHT - MARGIN * 2,
-        pos=(MARGIN, MARGIN),
+        height=WINDOW_HEIGHT - WINDOW_INSET,
+        pos=(0, 0),
         tag="controls_window",
+        no_title_bar=True,
+        no_move=True,
+        no_resize=True,
     ):
-        dpg.add_button(label="Open Image",
+        dpg.add_button(label="写真を選ぶ(クラシック)",
                        callback=lambda: dpg.show_item("file_dialog"))
-        dpg.add_button(label="Open via Explorer", callback=on_open_explorer)
+        dpg.add_button(label="写真を選ぶ(推奨)", callback=on_open_explorer)
         dpg.add_text("Path: ", tag="path_text")
         dpg.add_spacer(height=8)
         for key in PARAM_ORDER:
@@ -434,9 +546,14 @@ def build_ui() -> None:
     with dpg.window(
         label="Preview",
         width=PREVIEW_WINDOW_WIDTH,
-        height=PREVIEW_WINDOW_HEIGHT,
-        pos=(CONTROLS_WIDTH + MARGIN * 2, MARGIN),
+        height=PREVIEW_WINDOW_HEIGHT - WINDOW_INSET,
+        pos=(CONTROLS_WIDTH, 0),
         tag="preview_window",
+        no_title_bar=True,
+        no_move=True,
+        no_resize=True,
+        no_scrollbar=True,
+        no_scroll_with_mouse=True,
     ):
         rebuild_preview_content()
 
@@ -445,6 +562,7 @@ def build_ui() -> None:
 
     dpg.setup_dearpygui()
     dpg.show_viewport()
+    apply_fixed_layout()
     dpg.start_dearpygui()
     dpg.destroy_context()
 
