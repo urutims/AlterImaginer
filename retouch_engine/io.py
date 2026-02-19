@@ -7,6 +7,15 @@ from io import BytesIO
 
 import numpy as np
 from PIL import Image
+from PIL import UnidentifiedImageError
+
+try:
+    from pillow_heif import register_heif_opener
+
+    register_heif_opener()
+    _HAS_HEIF = True
+except Exception:
+    _HAS_HEIF = False
 
 try:
     from PIL import ImageCms
@@ -38,7 +47,15 @@ def load_image_rgb_u8(source: SourceType) -> np.ndarray:
     if isinstance(source, Image.Image):
         image = source
     else:
-        image = Image.open(source)
+        try:
+            image = Image.open(source)
+        except UnidentifiedImageError as exc:
+            source_str = str(source).lower()
+            if source_str.endswith((".heic", ".heif")) and not _HAS_HEIF:
+                raise RuntimeError(
+                    "HEIC/HEIFの読み込みには pillow-heif が必要です"
+                ) from exc
+            raise
 
     image = _convert_to_srgb(image)
     return np.asarray(image, dtype=np.uint8)

@@ -4,3 +4,4 @@ raw_photo/
 __pycache__/
 *.pyc
 retouch_engine.egg-info/
+.venv/

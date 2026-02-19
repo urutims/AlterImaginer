@@ -48,6 +48,8 @@ DEFAULT_PARAMS = {
     "tint": 0.0,
 }
 
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".heic", ".heif"}
+
 WINDOW_WIDTH = 1600
 WINDOW_HEIGHT = 1000
 CONTROLS_WIDTH = 360
@@ -284,12 +286,78 @@ def on_slider_change(sender, app_data, user_data) -> None:
     refresh_after()
 
 
+def on_reset_param(sender, app_data, user_data) -> None:
+    key = str(user_data)
+    dpg.set_value(f"param_{key}", float(DEFAULT_PARAMS[key]))
+    refresh_after()
+
+
+def on_reset_all_params(sender, app_data, user_data) -> None:
+    for key in PARAM_ORDER:
+        dpg.set_value(f"param_{key}", float(DEFAULT_PARAMS[key]))
+    refresh_after()
+
+
 def on_open_file(sender, app_data, user_data) -> None:
     selection = app_data.get("selections")
     if not selection:
         return
     path = next(iter(selection.values()))
     load_path(path)
+
+
+def _list_images_in_same_folder(path: str) -> list[Path]:
+    current = Path(path)
+    folder = current.parent
+    if not folder.is_dir():
+        return []
+    images = [
+        item for item in folder.iterdir()
+        if item.is_file() and item.suffix.lower() in IMAGE_EXTENSIONS
+    ]
+    images.sort(key=lambda p: p.name.lower())
+    return images
+
+
+def _find_current_index(images: list[Path], current: Path) -> int | None:
+    current_norm = os.path.normcase(str(current.resolve()))
+    for idx, image in enumerate(images):
+        if os.path.normcase(str(image.resolve())) == current_norm:
+            return idx
+    return None
+
+
+def load_adjacent_image(step: int) -> None:
+    current_path = STATE.get("path")
+    if not current_path:
+        dpg.set_value("status_text", "先に写真を選んでください")
+        return
+
+    current = Path(current_path)
+    images = _list_images_in_same_folder(current_path)
+    if not images:
+        dpg.set_value("status_text", "同じフォルダに画像が見つかりません")
+        return
+
+    index = _find_current_index(images, current)
+    if index is None:
+        dpg.set_value("status_text", "現在の画像がフォルダ一覧に見つかりません")
+        return
+
+    target_index = index + step
+    if target_index < 0 or target_index >= len(images):
+        dpg.set_value("status_text", "これ以上移動できません")
+        return
+
+    load_path(str(images[target_index]))
+
+
+def on_prev_image(sender, app_data, user_data) -> None:
+    load_adjacent_image(-1)
+
+
+def on_next_image(sender, app_data, user_data) -> None:
+    load_adjacent_image(1)
 
 
 def on_save(sender, app_data, user_data) -> None:
@@ -364,7 +432,7 @@ def on_open_explorer(sender, app_data, user_data) -> None:
         title="Select image",
         initialdir=initial_dir,
         filetypes=[
-            ("Image files", "*.jpg *.jpeg *.png *.tif *.tiff"),
+            ("Image files", "*.jpg *.jpeg *.png *.tif *.tiff *.heic *.heif"),
             ("All files", "*.*"),
         ],
     )
@@ -511,6 +579,8 @@ def build_ui() -> None:
         dpg.add_file_extension(".png")
         dpg.add_file_extension(".tif")
         dpg.add_file_extension(".tiff")
+        dpg.add_file_extension(".heic")
+        dpg.add_file_extension(".heif")
 
     with dpg.window(
         label="Controls",
@@ -525,18 +595,30 @@ def build_ui() -> None:
         dpg.add_button(label="写真を選ぶ(クラシック)",
                        callback=lambda: dpg.show_item("file_dialog"))
         dpg.add_button(label="写真を選ぶ(推奨)", callback=on_open_explorer)
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="Prev", width=80, callback=on_prev_image)
+            dpg.add_button(label="Next", width=80, callback=on_next_image)
         dpg.add_text("Path: ", tag="path_text")
         dpg.add_spacer(height=8)
         for key in PARAM_ORDER:
             min_val, max_val = PARAM_RANGES[key]
-            dpg.add_slider_float(
-                label=key,
-                min_value=float(min_val),
-                max_value=float(max_val),
-                default_value=float(DEFAULT_PARAMS[key]),
-                tag=f"param_{key}",
-                callback=on_slider_change,
-            )
+            with dpg.group(horizontal=True):
+                dpg.add_button(
+                    label="R",
+                    width=26,
+                    callback=on_reset_param,
+                    user_data=key,
+                )
+                dpg.add_slider_float(
+                    label=key,
+                    min_value=float(min_val),
+                    max_value=float(max_val),
+                    default_value=float(DEFAULT_PARAMS[key]),
+                    tag=f"param_{key}",
+                    callback=on_slider_change,
+                )
+        dpg.add_button(label="全項目をデフォルトに戻す",
+                       callback=on_reset_all_params)
         dpg.add_spacer(height=8)
         dpg.add_button(label="Save sample", tag="save_button",
                        callback=on_save, enabled=False)
