@@ -132,7 +132,7 @@ def main() -> None:
     col1, col2, col3 = st.columns(3)
     with col1:
         st.subheader("Before")
-        st.image(before_np, use_container_width=True)
+        st.image(before_np, width='content')
 
     run = st.button("Run Inference", type="primary")
     if not run:
@@ -148,14 +148,14 @@ def main() -> None:
 
     with col2:
         st.subheader("AI After")
-        st.image(after_np, use_container_width=True)
+        st.image(after_np, width='content')
 
     gt_path = maybe_find_gt_after(uploaded.name)
     if gt_path is not None:
         with col3:
             st.subheader("GT After")
             gt_np = load_image_rgb_u8(gt_path)
-            st.image(gt_np, use_container_width=True)
+            st.image(gt_np, width='content')
     else:
         with col3:
             st.subheader("GT After")
@@ -165,7 +165,7 @@ def main() -> None:
     df = pd.DataFrame(
         [{"param": key, "value": float(params[key])} for key in param_order]
     )
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, width='content')
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     if st.button("Save AI After"):
