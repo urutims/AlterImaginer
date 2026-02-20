@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "retouch_engine"
+version = "0.1.0"
+description = "Shared retouch engine for the MVP"
+requires-python = ">=3.9"
+dependencies = [
+  "numpy",
+  "Pillow",
+  "pillow-heif",
+]

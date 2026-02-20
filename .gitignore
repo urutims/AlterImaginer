@@ -1,0 +1,7 @@
+dataset/
+raw_photo/
+.collector_state.json
+__pycache__/
+*.pyc
+retouch_engine.egg-info/
+.venv/

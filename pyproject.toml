@@ -1,0 +1,24 @@
+[project]
+name = "alter-imagineer"
+version = "0.1.0"
+description = "Retouch parameter regression MVP: collector, trainer, infer app"
+readme = "REDOME.md"
+requires-python = ">=3.10"
+dependencies = [
+    "retouch_engine",
+    "numpy",
+    "Pillow",
+    "pillow-heif",
+    "dearpygui",
+    "streamlit",
+    "torch",
+    "torchvision",
+    "pandas",
+]
+
+[tool.uv.sources]
+# リポジトリルートで uv を実行する場合は path = "retouch_engine" に変更してください
+retouch_engine = { path = "../retouch_engine", editable = true }
+
+[tool.uv]
+dev-dependencies = []
