@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 retouch_engine.egg-info/
 .venv/
+README_UV.md
