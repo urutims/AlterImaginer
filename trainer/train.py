@@ -1,18 +1,19 @@
 """Training entry point for parameter regression."""
 
 from __future__ import annotations
-from retouch_engine import PARAM_RANGES
 from trainer.model import build_model
 from trainer.dataset import RetouchDataset, PARAM_ORDER
-from torch.utils.data import DataLoader, random_split
-from torch import nn
-import torch
+from retouch_engine import PARAM_RANGES
 
 import argparse
 import json
 import sys
 from pathlib import Path
 from typing import Dict, List
+
+import torch
+from torch import nn
+from torch.utils.data import DataLoader, random_split
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -99,12 +100,17 @@ def main() -> None:
     train_set, val_set = random_split(
         dataset, [train_size, val_size], generator=generator)
 
-    train_loader = DataLoader(
-        train_set, batch_size=args.batch_size, shuffle=True, num_workers=2, pin_memory=True)
-    val_loader = DataLoader(val_set, batch_size=args.batch_size,
-                            shuffle=False, num_workers=2, pin_memory=True)
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    train_loader = DataLoader(
+        train_set,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=2,
+        pin_memory=(device.type == "cuda"),
+    )
+    val_loader = DataLoader(val_set, batch_size=args.batch_size,
+                            shuffle=False, num_workers=2, pin_memory=(device.type == "cuda"))
     model = build_model().to(device)
 
     loss_fn = nn.SmoothL1Loss()
