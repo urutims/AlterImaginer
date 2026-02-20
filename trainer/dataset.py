@@ -45,6 +45,7 @@ class RetouchDataset(Dataset):
 
         self.df = pd.read_csv(self.index_path)
         self.transform = build_transform(image_size)
+        self.param_ranges = load_param_ranges(self.index_path)
 
     def __len__(self) -> int:
         return len(self.df)
@@ -55,12 +56,17 @@ class RetouchDataset(Dataset):
         image = Image.open(image_path).convert("RGB")
         image_tensor = self.transform(image)
 
-        target = torch.tensor([row[key]
-                              for key in PARAM_ORDER], dtype=torch.float32)
+        target_raw = [float(row[key]) for key in PARAM_ORDER]
+        target_norm = []
+        for key, value in zip(PARAM_ORDER, target_raw):
+            min_val, max_val = self.param_ranges[key]
+            scaled = 2.0 * ((value - min_val) / (max_val - min_val)) - 1.0
+            target_norm.append(float(max(-1.0, min(1.0, scaled))))
+        target = torch.tensor(target_norm, dtype=torch.float32)
         return image_tensor, target
 
 
-def load_param_ranges(config_path: Path) -> Dict[str, Tuple[float, float]]:
+def load_param_ranges(_: Path) -> Dict[str, Tuple[float, float]]:
     from retouch_engine import PARAM_RANGES
 
     return {key: (float(v[0]), float(v[1])) for key, v in PARAM_RANGES.items()}

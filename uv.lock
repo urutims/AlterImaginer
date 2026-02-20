@@ -53,6 +53,9 @@ requires-dist = [
     { name = "torchvision" },
 ]
 
+[package.metadata.requires-dev]
+dev = []
+
 [[package]]
 name = "attrs"
 version = "25.4.0"
