@@ -17,8 +17,6 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-# リポジトリルートで uv を実行する場合は path = "retouch_engine" に変更してください
-retouch_engine = { path = "../retouch_engine", editable = true }
-
-[tool.uv]
-dev-dependencies = []
+# ※ uv は「プロジェクトルート外」の path を正しく扱えないため、
+# 必ず retouch_engine と同じ階層（RJP_2025）で uv を実行してください。
+retouch_engine = { path = "retouch_engine", editable = true }
