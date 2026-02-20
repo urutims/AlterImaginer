@@ -1,8 +1,9 @@
-"""Streamlit inference app for Retouch Mimic MVP."""
+"""Streamlit inference app for Alter_Imagineer MVP."""
 
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -14,10 +15,24 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-from retouch_engine import PARAM_RANGES, apply_retouch, load_image_rgb_u8, save_image_rgb_u8
-from trainer.model import build_model
-
 ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+_retouch_engine = __import__(
+    "retouch_engine",
+    fromlist=["PARAM_RANGES", "apply_retouch",
+              "load_image_rgb_u8", "save_image_rgb_u8"],
+)
+PARAM_RANGES = _retouch_engine.PARAM_RANGES
+apply_retouch = _retouch_engine.apply_retouch
+load_image_rgb_u8 = _retouch_engine.load_image_rgb_u8
+save_image_rgb_u8 = _retouch_engine.save_image_rgb_u8
+
+_trainer_model = __import__("trainer.model", fromlist=["build_model"])
+build_model = _trainer_model.build_model
+
+
 ARTIFACTS_DIR = ROOT_DIR / "artifacts"
 DATASET_DIR = ROOT_DIR / "dataset"
 AFTER_DIR = DATASET_DIR / "after"
@@ -96,8 +111,8 @@ def maybe_find_gt_after(upload_name: str) -> Path | None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="Retouch Mimic - Infer", layout="wide")
-    st.title("Retouch Mimic - Inference")
+    st.set_page_config(page_title="Alter_Imagineer - Infer", layout="wide")
+    st.title("Alter_Imagineer App")
 
     config = load_config()
     transform = build_transform(config)
