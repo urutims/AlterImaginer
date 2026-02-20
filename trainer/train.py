@@ -89,6 +89,9 @@ def eval_one_epoch(model: nn.Module, loader: DataLoader, loss_fn: nn.Module, dev
 
 def main() -> None:
     args = parse_args()
+    artifacts_dir = PROJECT_ROOT / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
     data_dir = resolve_cli_path(args.data)
     out_dir = resolve_cli_path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)

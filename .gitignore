@@ -7,3 +7,4 @@ retouch_engine.egg-info/
 .venv/
 README_UV.md
 temp/
+artifacts/*
