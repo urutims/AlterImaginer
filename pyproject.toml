@@ -1,19 +1,23 @@
 [project]
 name = "alter-imagineer"
 version = "0.1.0"
-description = "Retouch Mimic MVP workspace"
-requires-python = ">=3.9"
+description = "Retouch parameter regression MVP: collector, trainer, infer app"
+readme = "REDOME.md"
+requires-python = ">=3.10"
 dependencies = [
+  "retouch_engine",
   "numpy",
-  "pandas",
   "Pillow",
   "pillow-heif",
   "dearpygui",
   "streamlit",
   "torch",
   "torchvision",
-  "retouch_engine",
+  "pandas",
 ]
 
 [tool.uv.sources]
 retouch_engine = { path = "retouch_engine", editable = true }
+
+[tool.uv]
+dev-dependencies = []

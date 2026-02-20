@@ -1,8 +1,9 @@
-"""Streamlit inference app for Retouch Mimic MVP."""
+"""Streamlit inference app for Alter_Imagineer MVP."""
 
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -14,10 +15,24 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-from retouch_engine import PARAM_RANGES, apply_retouch, load_image_rgb_u8, save_image_rgb_u8
-from trainer.model import build_model
-
 ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+_retouch_engine = __import__(
+    "retouch_engine",
+    fromlist=["PARAM_RANGES", "apply_retouch",
+              "load_image_rgb_u8", "save_image_rgb_u8"],
+)
+PARAM_RANGES = _retouch_engine.PARAM_RANGES
+apply_retouch = _retouch_engine.apply_retouch
+load_image_rgb_u8 = _retouch_engine.load_image_rgb_u8
+save_image_rgb_u8 = _retouch_engine.save_image_rgb_u8
+
+_trainer_model = __import__("trainer.model", fromlist=["build_model"])
+build_model = _trainer_model.build_model
+
+
 ARTIFACTS_DIR = ROOT_DIR / "artifacts"
 DATASET_DIR = ROOT_DIR / "dataset"
 AFTER_DIR = DATASET_DIR / "after"
@@ -96,8 +111,8 @@ def maybe_find_gt_after(upload_name: str) -> Path | None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="Retouch Mimic - Infer", layout="wide")
-    st.title("Retouch Mimic - Inference")
+    st.set_page_config(page_title="Alter_Imagineer - Infer", layout="wide")
+    st.title("Alter_Imagineer App")
 
     config = load_config()
     transform = build_transform(config)
@@ -117,7 +132,7 @@ def main() -> None:
     col1, col2, col3 = st.columns(3)
     with col1:
         st.subheader("Before")
-        st.image(before_np, use_container_width=True)
+        st.image(before_np, width='content')
 
     run = st.button("Run Inference", type="primary")
     if not run:
@@ -133,14 +148,14 @@ def main() -> None:
 
     with col2:
         st.subheader("AI After")
-        st.image(after_np, use_container_width=True)
+        st.image(after_np, width='content')
 
     gt_path = maybe_find_gt_after(uploaded.name)
     if gt_path is not None:
         with col3:
             st.subheader("GT After")
             gt_np = load_image_rgb_u8(gt_path)
-            st.image(gt_np, use_container_width=True)
+            st.image(gt_np, width='content')
     else:
         with col3:
             st.subheader("GT After")
@@ -150,7 +165,7 @@ def main() -> None:
     df = pd.DataFrame(
         [{"param": key, "value": float(params[key])} for key in param_order]
     )
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, width='content')
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     if st.button("Save AI After"):

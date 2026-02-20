@@ -1,21 +1,22 @@
 """Training entry point for parameter regression."""
 
 from __future__ import annotations
+from retouch_engine import PARAM_RANGES
+from trainer.model import build_model
+from trainer.dataset import RetouchDataset, PARAM_ORDER
+from torch.utils.data import DataLoader, random_split
+from torch import nn
+import torch
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Dict, List
 
-import torch
-from torch import nn
-from torch.utils.data import DataLoader, random_split
-
-from trainer.dataset import RetouchDataset, PARAM_ORDER
-from trainer.model import build_model
-from retouch_engine import PARAM_RANGES
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def parse_args() -> argparse.Namespace:

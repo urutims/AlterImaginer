@@ -42,7 +42,7 @@ uv run python collector_app/dpg_app.py
 ## 4. 学習フロー
 ### 4.1 学習コマンド
 ```
-uv run python trainer/train.py --data dataset --out artifacts
+uv run  python -m trainer.train --data dataset --out artifacts
 ```
 
 ### 4.2 出力成果物
