@@ -110,6 +110,67 @@ def maybe_find_gt_after(upload_name: str) -> Path | None:
     return None
 
 
+@st.cache_data
+def get_landscape_pair_candidates(index_mtime_ns: int) -> List[Tuple[str, str]]:
+    _ = index_mtime_ns
+    index_path = DATASET_DIR / "index.csv"
+    if not index_path.exists():
+        return []
+
+    df = pd.read_csv(index_path)
+    candidates: List[Tuple[str, str]] = []
+    for _, row in df.iterrows():
+        before_path = DATASET_DIR / str(row["before_path"])
+        after_path = DATASET_DIR / str(row["after_path"])
+        if not before_path.exists() or not after_path.exists():
+            continue
+        try:
+            with Image.open(before_path) as before_image:
+                width, height = before_image.size
+            if width > height:
+                candidates.append((str(before_path), str(after_path)))
+        except Exception:
+            continue
+
+    if not candidates:
+        return []
+
+    return list(dict.fromkeys(candidates))
+
+
+def sample_landscape_pairs(max_count: int = 4) -> List[Tuple[Path, Path]]:
+    index_path = DATASET_DIR / "index.csv"
+    if not index_path.exists():
+        return []
+
+    index_mtime_ns = index_path.stat().st_mtime_ns
+    candidate_strings = get_landscape_pair_candidates(index_mtime_ns)
+    if not candidate_strings:
+        return []
+
+    unique_candidates = [(Path(before), Path(after))
+                         for before, after in candidate_strings]
+    if len(unique_candidates) <= max_count:
+        return unique_candidates
+
+    indices = np.random.choice(
+        len(unique_candidates), size=max_count, replace=False)
+    return [unique_candidates[int(i)] for i in indices]
+
+
+def get_session_landscape_pairs(max_count: int = 4) -> List[Tuple[Path, Path]]:
+    key = f"preview_landscape_pairs_{max_count}"
+    if key not in st.session_state:
+        st.session_state[key] = sample_landscape_pairs(max_count=max_count)
+    return st.session_state[key]
+
+
+@st.cache_data
+def load_cached_preview_image(image_path: str, mtime_ns: int) -> np.ndarray:
+    _ = mtime_ns
+    return load_image_rgb_u8(Path(image_path))
+
+
 def main() -> None:
     st.set_page_config(page_title="Alter_Imagineer - Infer", layout="wide")
     st.title("Alter_Imagineer App")
@@ -120,6 +181,24 @@ def main() -> None:
     param_ranges = config.get("param_ranges", {k: [float(
         v[0]), float(v[1])] for k, v in PARAM_RANGES.items()})
 
+    st.subheader("加工後のレタッチの雰囲気")
+    sampled_pairs = get_session_landscape_pairs(max_count=4)
+    if sampled_pairs:
+        preview_cols = st.columns(4)
+        for index, (before_path, after_path) in enumerate(sampled_pairs):
+            with preview_cols[index]:
+                st.caption("Before")
+                before_mtime = before_path.stat().st_mtime_ns
+                st.image(load_cached_preview_image(str(before_path), before_mtime),
+                         use_container_width=True)
+                st.caption("After")
+                after_mtime = after_path.stat().st_mtime_ns
+                st.image(load_cached_preview_image(str(after_path), after_mtime),
+                         use_container_width=True)
+    else:
+        st.caption("横長の Before→After ペアを表示できません。")
+
+    st.subheader("画像をアップロードしてAIレタッチを試す")
     uploaded = st.file_uploader(
         "Upload JPG", type=["jpg", "jpeg", "png", "tif", "tiff"])
     if uploaded is None:
@@ -153,12 +232,12 @@ def main() -> None:
     gt_path = maybe_find_gt_after(uploaded.name)
     if gt_path is not None:
         with col3:
-            st.subheader("GT After")
+            st.subheader("真のAfter")
             gt_np = load_image_rgb_u8(gt_path)
             st.image(gt_np, width='content')
     else:
         with col3:
-            st.subheader("GT After")
+            st.subheader("真のAfter")
             st.caption("No matching ID found in dataset/after.")
 
     st.subheader("Predicted Parameters")
