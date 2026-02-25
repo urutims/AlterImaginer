@@ -62,10 +62,10 @@ def load_config() -> Dict:
 
 
 @st.cache_resource
-def load_model() -> Tuple[torch.nn.Module, torch.device]:
-    model_path = ARTIFACTS_DIR / "model.pt"
+def load_model(model_filename: str) -> Tuple[torch.nn.Module, torch.device]:
+    model_path = ARTIFACTS_DIR / model_filename
     if not model_path.exists():
-        raise FileNotFoundError("artifacts/model.pt not found")
+        raise FileNotFoundError(f"artifacts/{model_filename} not found")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = build_model()
     state = torch.load(model_path, map_location=device)
@@ -73,6 +73,10 @@ def load_model() -> Tuple[torch.nn.Module, torch.device]:
     model.to(device)
     model.eval()
     return model, device
+
+
+def list_available_models() -> List[str]:
+    return sorted([path.name for path in ARTIFACTS_DIR.glob("*.pt")])
 
 
 def build_transform(config: Dict) -> transforms.Compose:
@@ -181,6 +185,14 @@ def main() -> None:
     param_ranges = config.get("param_ranges", {k: [float(
         v[0]), float(v[1])] for k, v in PARAM_RANGES.items()})
 
+    model_options = list_available_models()
+    if not model_options:
+        st.error("artifacts 配下に .pt モデルが見つかりません。")
+        st.stop()
+    default_model = "wada_model.pt" if "wada_model.pt" in model_options else model_options[0]
+    selected_model = st.selectbox(
+        "使用モデル", options=model_options, index=model_options.index(default_model))
+
     st.subheader("加工後のレタッチの雰囲気")
     sampled_pairs = get_session_landscape_pairs(max_count=4)
     if sampled_pairs:
@@ -190,11 +202,11 @@ def main() -> None:
                 st.caption("Before")
                 before_mtime = before_path.stat().st_mtime_ns
                 st.image(load_cached_preview_image(str(before_path), before_mtime),
-                         use_container_width=True)
+                         width='stretch')
                 st.caption("After")
                 after_mtime = after_path.stat().st_mtime_ns
                 st.image(load_cached_preview_image(str(after_path), after_mtime),
-                         use_container_width=True)
+                         width='stretch')
     else:
         st.caption("横長の Before→After ペアを表示できません。")
 
@@ -218,7 +230,7 @@ def main() -> None:
         return
 
     with st.spinner("Running inference..."):
-        model, device = load_model()
+        model, device = load_model(selected_model)
         input_tensor = transform(before_pil).unsqueeze(0).to(device)
         with torch.no_grad():
             raw = model(input_tensor).cpu().numpy().squeeze(0)
